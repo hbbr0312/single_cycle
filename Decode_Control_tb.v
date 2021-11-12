@@ -1,11 +1,10 @@
 // Testbench for Decode_Control
 `timescale 1ns/1ns
 
-// -[x] check testbench
 module testbench;
     reg [31:0] instruction;
 
-    wire [1:0] ALUOp; // 00: no op, 01: group1,2, 10: comparator
+    wire ALUOp; // 0: default ALU, 1: comparator
     wire [1:0] PCSrc; // 00: PC_temp, 01: branch, 10: pop_pc
     wire MemRead;
     wire MemWrite;

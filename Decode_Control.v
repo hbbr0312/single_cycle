@@ -22,7 +22,7 @@ module Decode_Control(
     reg [2:0] opcode1;
     reg [2:0] opcode2;
 
-    output reg [1:0] ALUOp; // 00: no op, 01: group1,2, 10: comparator
+    output reg ALUOp; // 0: default, 1: comparator
     output reg [1:0] PCSrc; // 00: PC_temp, 01: branch, 10: pop_pc
     output reg MemRead;
     output reg MemWrite;
@@ -35,9 +35,9 @@ module Decode_Control(
         opcode2 = instruction[REG_BITS-4:REG_BITS-6];
 
         case(opcode1)
-            // Group 1
+            // Group 1: add, sub, neg, mult, and, or, xor, not
             3'b000: begin
-                ALUOp = 2'b01;
+                ALUOp = 1'b0;
                 PCSrc = 2'b00;
                 MemRead = 0;
                 MemWrite = 0;
@@ -47,9 +47,9 @@ module Decode_Control(
                 else StackUpdateMode = 2'b11;
 
             end
-            // Group 2
+            // Group 2: addi, subi, negi, multi, andi, ori, xori, noti
             3'b001: begin
-                ALUOp = 2'b01;
+                ALUOp = 1'b0;
                 PCSrc = 2'b00;
                 MemRead = 0;
                 MemWrite = 0;
@@ -59,9 +59,9 @@ module Decode_Control(
                 else StackUpdateMode = 2'b00;
 
             end
-            // Group 3
+            // Group 3: push
             3'b010: begin
-                ALUOp = 2'b00;
+                ALUOp = 1'b0;
                 PCSrc = 2'b00;
                 MemRead = 1;
                 MemWrite = 0;
@@ -70,9 +70,9 @@ module Decode_Control(
                 StackUpdateMode = 2'b00;
                 
             end
-            // Group 4
+            // Group 4: pop
             3'b011: begin
-                ALUOp = 2'b00;
+                ALUOp = 1'b0;
                 PCSrc = 2'b00;
                 MemRead = 0;
                 MemWrite = 1;
@@ -81,9 +81,9 @@ module Decode_Control(
                 StackUpdateMode = 2'b10;
                 
             end
-            // Group 5
+            // Group 5: eq, gt, leq
             3'b100: begin
-                ALUOp = 2'b10;
+                ALUOp = 1'b1;
                 PCSrc = 2'b00;
                 MemRead = 0;
                 MemWrite = 0;
@@ -92,9 +92,9 @@ module Decode_Control(
                 StackUpdateMode = 2'b11;
 
             end
-            // Group 6
+            // Group 6: branch_zero, branch_nzero
             3'b101: begin
-                ALUOp = 2'b00;
+                ALUOp = 1'b0;
                 PCSrc = 2'b01;
                 MemRead = 0;
                 MemWrite = 0;
@@ -103,9 +103,9 @@ module Decode_Control(
                 StackUpdateMode = 2'b10;
                 
             end
-            // Group 7
+            // Group 7: push_pc
             3'b110: begin
-                ALUOp = 2'b00;
+                ALUOp = 1'b0;
                 PCSrc = 2'b00;
                 MemRead = 0;
                 MemWrite = 0;
@@ -114,9 +114,9 @@ module Decode_Control(
                 StackUpdateMode = 2'b01;
                 
             end
-            // Group 8
+            // Group 8: pop_pc
             3'b111: begin
-                ALUOp = 2'b00;
+                ALUOp = 1'b0;
                 PCSrc = 2'b10;
                 MemRead = 0;
                 MemWrite = 0;

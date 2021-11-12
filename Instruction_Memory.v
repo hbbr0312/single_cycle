@@ -1,7 +1,7 @@
 // Instruction_Memory
-// width: REG_BITS (32 or 16)
-// height: 64
-
+// width: 8 (1 byte)
+// height: 256  -> modify later
+// byte address
 module Instruction_Memory(clk, PC, instruction);
     parameter REG_BITS = 32;
 
@@ -9,10 +9,11 @@ module Instruction_Memory(clk, PC, instruction);
     input [REG_BITS-1:0] PC;
     output reg [REG_BITS-1:0] instruction;
 
-    reg [REG_BITS-1:0] imem [63:0]; // modify height
+    reg [7:0] imem [255:0]; // byte address
 
     always @(posedge clk) begin
-        instruction = imem[PC];
+        if (REG_BITS == 32) instruction = {imem[PC], imem[PC+1], imem[PC+2], imem[PC+3]};
+        else instruction = {imem[PC], imem[PC+1]};
     end
 
 endmodule

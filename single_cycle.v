@@ -1,6 +1,6 @@
 // author: Guseul Heo
 // start date: November 9, 2021
-// end date: November 11, 2021
+// end date: November 12, 2021
 
 /* 
  * Challenge #3 :
@@ -13,14 +13,14 @@ module single_cycle(clk);
     input clk;
     wire [REG_BITS-1:0] instruction;
     
-    wire [REG_BITS-1:0] PC_in, PC_out, SP;
+    wire [REG_BITS-1:0] PC_in, PC_out, PC, SP;
     wire [REG_BITS-1:0] stack_read1, stack_read2, operand2;
     wire [REG_BITS-1:0] data_read, ALUResult;
 
     wire [REG_BITS-1:0] stack_write_data;
     wire [REG_BITS-1:0] immediate; // sign extended immediate
 
-    wire [1:0] ALUOp;
+    wire ALUOp;
     wire MemRead, MemWrite;
     wire [1:0] PCSrc; // 00: PC_temp, 01: branch, 10: pop_pc
     wire [1:0] StackWriteSrc; // 00: no write, 01: ALUresult, 10: dmem_read, 11: PC_temp
@@ -29,24 +29,35 @@ module single_cycle(clk);
     wire branch;
 
     // fetch instrcution
-    Instruction_Memory Unit1 (
+    Instruction_Memory #(.REG_BITS(REG_BITS)) fetch_instr (
         .clk(clk), 
         .PC(PC_out), 
         .instruction(instruction)
     );
 
-    // increment Program Counter
-    Program_Counter Unit2 (
+    // Control Program Counter
+    Program_Counter #(.REG_BITS(REG_BITS)) pc_register (
         .clk(clk),
-        .branch(branch),
         .PC_in(PC_in), 
         .PC_out(PC_out)
     );
 
+    PC_Adder #(.REG_BITS(REG_BITS)) pc_adder (
+        .PC_in(PC_out), 
+        .PC_out(PC)
+    );
+
+    MUX2 #(.REG_BITS(REG_BITS)) pc_mux (
+        .s(branch), 
+        .d0(PC), 
+        .d1(stack_read1), 
+        .out(PC_in)
+    );
+
     // read top and next top data of stack
-    Stack_Memory Unit3(
+    Stack_Memory #(.REG_BITS(REG_BITS)) stack (
         .clk(clk), 
-        .StackWriteSrc(StackWriteSrc), 
+        .StackWrite(!(!StackWriteSrc)), 
         .SP(SP), 
         .write_data(stack_write_data), 
         .read1(stack_read1), 
@@ -54,7 +65,7 @@ module single_cycle(clk);
     );
     
     // decode instruction and control
-    Decode_Control Unit4(
+    Decode_Control #(.REG_BITS(REG_BITS)) control_unit(
         .instruction(instruction),
         .ALUOp(ALUOp),
         .PCSrc(PCSrc),
@@ -66,21 +77,22 @@ module single_cycle(clk);
     );
 
     // sign extend for immediate
-    Sign_Extend Unit5(
+    Sign_Extend #(.REG_BITS(REG_BITS)) sign_extension(
         .in(instruction[REG_BITS-7:0]), 
         .out(immediate)
     );
-    
-    MUX2 Unit6 (
+
+    MUX2 #(.REG_BITS(REG_BITS)) alu_src_mux (
         .s(ALUSrc), 
-        .in1(stack_read2), 
-        .in2(immediate), 
+        .d0(stack_read2), 
+        .d1(immediate), 
         .out(operand2)
     );
 
     // ALU unit
-    ALU Unit7 (
-        .ALUop(ALUOp),
+    ALU #(.REG_BITS(REG_BITS)) alu (
+        .ALUOp(ALUOp),
+        .ALUSrc(ALUSrc),
         .opcode2(instruction[REG_BITS-4:REG_BITS-6]), 
         .operand1(stack_read1), 
         .operand2(operand2),
@@ -88,15 +100,16 @@ module single_cycle(clk);
     );
 
     // control branch
-    Branch_Control Unit8 (
+    Branch_Control #(.REG_BITS(REG_BITS)) branch_control (
         .PCSrc(PCSrc), 
         .opcode2(instruction[REG_BITS-4:REG_BITS-6]), 
-        .operand(stack_read1), 
+        .operand(stack_read2), 
         .branch(branch)
     );
     
     // read or write data in Data Memory (Only instr group 3,4)
-    Data_Memory Unit9 (
+    Data_Memory #(.REG_BITS(REG_BITS)) dmem (
+        .clk(clk),
         .MemRead(MemRead), 
         .MemWrite(MemWrite), 
         .addr(stack_read1), 
@@ -105,131 +118,22 @@ module single_cycle(clk);
     );
     
     // update Stack Pointer
-    Stack_Pointer Unit10 (
+    Stack_Pointer #(.REG_BITS(REG_BITS)) stack_pointer (
+        .clk(clk),
         .StackUpdateMode(StackUpdateMode), 
         .SP_out(SP)
     );
 
     // decide whether write data on stack, and select what to write
-    Select_Write_Data Unit11 (
-        .StackWriteSrc(StackWriteSrc), 
-        .PC(PC_out), 
-        .data_read(data_read), 
-        .ALUResult(ALUResult), 
-        .stack_write_data(stack_write_data)
+    // StackWriteSrc 00: no write, 01: ALUresult, 10: dmem_read, 11: PC
+    MUX4 #(.REG_BITS(REG_BITS)) stack_write_data_mux (
+        .s0(StackWriteSrc[1]),
+        .s1(StackWriteSrc[0]),
+        .d0({REG_BITS{1'b0}}),
+        .d1(ALUResult),
+        .d2(data_read),
+        .d3(PC),
+        .out(stack_write_data)
     );
 
-endmodule
-
-
-module Program_Counter(clk, branch, PC_in, PC_out);
-    parameter REG_BITS = 32;
-
-    input clk, branch;
-    input [REG_BITS-1:0] PC_in;
-    output [REG_BITS-1:0] PC_out;
-
-    reg [REG_BITS-1:0] PC;
-
-    assign PC_out = PC;
-
-    always @(posedge clk) begin
-        if (REG_BITS == 16) PC = PC + 2;
-        else PC = PC + 4;
-    end
-
-    always @(branch) begin
-        if (branch) PC = PC_in;
-    end
-
-endmodule
-
-
-module Branch_Control(PCSrc, opcode2, operand, branch);
-    parameter REG_BITS = 32;
-
-    input [1:0] PCSrc;
-    input [2:0] opcode2;
-    input [REG_BITS-1:0] operand;
-
-    output branch;
-
-    always @(PCSrc) begin
-        case(opcode2)
-            3'b000: begin // branch_zero
-                if (operand == 0) branch = 1'b1;
-                else branch = 1'b0;
-            end
-            3'b001: begin // branch_nzero
-                if (operand == 0) branch = 1'b0;
-                else branch = 1'b1;
-            end
-            default: branch = 1'b0;
-        endcase
-    end
-
-endmodule
-
-// update Stack Pointer
-module Stack_Pointer(StackUpdateMode, SP_out);
-    parameter REG_BITS = 32;
-    
-    input [1:0] StackUpdateMode;
-    output [REG_BITS-1:0] SP_out;
-    reg [REG_BITS-1:0] SP;
-
-    assign SP_out = SP;
-
-    always @(StackUpdateMode) begin
-        case(StackUpdateMode)
-            2'b10: SP = SP-2;
-            2'b11: SP = SP-1;
-            2'b00: SP = SP;
-            2'b01: SP = SP+1;
-            default: SP = SP; // not reach
-        endcase
-    end
-
-endmodule
-
-// decide whether write data on stack, and select what to write
-module Select_Write_Data(StackWriteSrc, PC, data_read, ALUResult, stack_write_data);
-    parameter REG_BITS = 32;
-
-    input [1:0] StackWriteSrc; // 00: no write, 01: ALUresult, 10: dmem_read, 11: PC
-    input [REG_BITS-1:0] PC, data_read, ALUResult;
-    output reg [REG_BITS-1:0] stack_write_data;
-
-    always @(StackWriteSrc or ALUResult or data_read or PC) begin
-        case(StackWriteSrc)
-            2'b01: stack_write_data = ALUResult;
-            2'b10: stack_write_data = data_read;
-            2'b11: stack_write_data = PC;
-            default: stack_write_data = {REG_BITS{1'b0}};
-        endcase
-    end
-endmodule
-
-
-// Sign Extend for immediate
-module Sign_Extend(in, out);
-    parameter REG_BITS = 32;
-
-    input [REG_BITS-7:0] in;
-    output [REG_BITS-1:0] out;
-
-    assign out = {{6{in[REG_BITS-7]}}, in[REG_BITS-7:0]};
-
-endmodule
-
-
-// 2x1 Multiplexor
-module MUX2(s, in1, in2, out);
-    parameter REG_BITS = 32;
-
-    input s;
-    input [REG_BITS-1:0] in1, in2;
-    output [REG_BITS-1:0] out;
-
-    assign out = s ? in2 : in1;
 endmodule
