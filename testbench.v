@@ -5,7 +5,7 @@ module testbench;
     parameter REG_BITS = 32;  // # of bits for register
 
     reg clk;
-
+    reg [REG_BITS-1:0] instruction;
     single_cycle #(.REG_BITS(REG_BITS)) single_cycle_stack_machine (clk);
 
     initial begin
@@ -49,34 +49,44 @@ module testbench;
         end
 
         if (REG_BITS == 32) begin
-            // add 3, 3 => 6(b110)
-            // negi 11111111 => 11..100000000
-            // noti 100 => 0
+            // negi 111...00 => 000...11 (3)
+            // noti 0 => 1
+            // sub => 1 - 3 = -2 (11..110)
+            // neg => 11111...101 
 
-            // instruction
-            single_cycle_stack_machine.fetch_instr.imem[0] = 8'b00000000; // add 
-            single_cycle_stack_machine.fetch_instr.imem[1] = 8'b00000000;
-            single_cycle_stack_machine.fetch_instr.imem[2] = 8'b00000000;
-            single_cycle_stack_machine.fetch_instr.imem[3] = 8'b00000000; 
-            single_cycle_stack_machine.fetch_instr.imem[4] = 8'b00101000; // negi
-            single_cycle_stack_machine.fetch_instr.imem[5] = 8'b00000000;
-            single_cycle_stack_machine.fetch_instr.imem[6] = 8'b00000000;
-            single_cycle_stack_machine.fetch_instr.imem[7] = 8'b11111111;
-            single_cycle_stack_machine.fetch_instr.imem[8] = 8'b11011100; // noti
-            single_cycle_stack_machine.fetch_instr.imem[9] = 8'b00000000;
-            single_cycle_stack_machine.fetch_instr.imem[10] = 8'b00000000;
-            single_cycle_stack_machine.fetch_instr.imem[11] = 8'b00000100;
-
-            // stack memory
-            single_cycle_stack_machine.stack.stack[0] = 2'b11;
-            single_cycle_stack_machine.stack.stack[1] = 2'b11;
-            single_cycle_stack_machine.stack.stack[2] = 3'b101;
-            single_cycle_stack_machine.stack.stack[3] = 3'b011;
-
-            //pc sp
+            // initialize registers
             single_cycle_stack_machine.pc_register.PC = 0;
-            single_cycle_stack_machine.stack_pointer.SP = 3'b001;
-            single_cycle_stack_machine.branch_control.branch = 1'b0;
+            single_cycle_stack_machine.stack_pointer.SP = 0;
+            single_cycle_stack_machine.branch_control.branch = 0;
+
+            /* instruction */
+            // negi 111..100
+            instruction = 32'b00101011111111111111111111111100;
+            single_cycle_stack_machine.fetch_instr.imem[0] = instruction[31:24]; 
+            single_cycle_stack_machine.fetch_instr.imem[1] = instruction[23:16];
+            single_cycle_stack_machine.fetch_instr.imem[2] = instruction[15:8];
+            single_cycle_stack_machine.fetch_instr.imem[3] = instruction[7:0];
+            
+            // noti 0
+            instruction = 32'b00111100000000000000000000000000;
+            single_cycle_stack_machine.fetch_instr.imem[4] = instruction[31:24]; 
+            single_cycle_stack_machine.fetch_instr.imem[5] = instruction[23:16];
+            single_cycle_stack_machine.fetch_instr.imem[6] = instruction[15:8];
+            single_cycle_stack_machine.fetch_instr.imem[7] = instruction[7:0];
+
+            // sub
+            instruction = 32'b00000100000000000000000000000000;
+            single_cycle_stack_machine.fetch_instr.imem[8] = instruction[31:24]; 
+            single_cycle_stack_machine.fetch_instr.imem[9] = instruction[23:16];
+            single_cycle_stack_machine.fetch_instr.imem[10] = instruction[15:8];
+            single_cycle_stack_machine.fetch_instr.imem[11] = instruction[7:0];
+
+            // neg
+            instruction = 32'b00001000000000000000000000000000;
+            single_cycle_stack_machine.fetch_instr.imem[12] = instruction[31:24]; 
+            single_cycle_stack_machine.fetch_instr.imem[13] = instruction[23:16];
+            single_cycle_stack_machine.fetch_instr.imem[14] = instruction[15:8];
+            single_cycle_stack_machine.fetch_instr.imem[15] = instruction[7:0];
         end
     end
 

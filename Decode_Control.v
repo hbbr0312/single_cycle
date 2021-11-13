@@ -4,6 +4,7 @@
  * and the controller in Verilog
  */
 
+// Control Unit
 module Decode_Control(
     instruction, 
     ALUOp,
